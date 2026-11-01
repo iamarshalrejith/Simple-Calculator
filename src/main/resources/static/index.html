@@ -1,0 +1,168 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Calculator</title>
+
+    <style>
+        
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #ECFDF5;
+    font-family: Arial, sans-serif;
+}
+
+.calculator {
+    width: 350px;
+    padding: 28px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 10px 35px rgba(5, 150, 105, 0.12);
+}
+
+h1 {
+    text-align: center;
+    color: #064E3B;
+}
+
+input {
+    width: 100%;
+    padding: 14px;
+    margin: 10px 0;
+    border: 1px solid #A7F3D0;
+    border-radius: 8px;
+    font-size: 16px;
+    outline: none;
+}
+
+input:focus {
+    border-color: #059669;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+}
+
+.buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 15px;
+}
+
+button {
+    padding: 13px;
+    border: none;
+    border-radius: 8px;
+    background: #059669;
+    color: white;
+    font-size: 17px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+button:hover {
+    background: #047857;
+}
+
+.clear {
+    background: #64748B;
+    grid-column: span 2;
+}
+
+.clear:hover {
+    background: #475569;
+}
+
+#result {
+    margin-top: 20px;
+    padding: 15px;
+    background: #D1FAE5;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: #065F46;
+}
+
+#result.error {
+    color: #DC2626;
+    background: #FEF2F2;
+}
+
+    </style>
+</head>
+
+<body>
+
+<div class="calculator">
+
+    <h1>Simple Calculator</h1>
+
+    <input type="number" id="num1" placeholder="Enter first number" step="any">
+
+    <input type="number" id="num2" placeholder="Enter second number" step="any">
+
+    <div class="buttons">
+        <button onclick="calculate('add')">+</button>
+        <button onclick="calculate('subtract')">−</button>
+        <button onclick="calculate('multiply')">×</button>
+        <button onclick="calculate('divide')">÷</button>
+        <button class="clear" onclick="clearCalculator()">Clear</button>
+    </div>
+
+    <div id="result">Result will appear here</div>
+
+</div>
+
+<script>
+    async function calculate(operation) {
+
+        const a = document.getElementById("num1").value;
+        const b = document.getElementById("num2").value;
+        const resultElement = document.getElementById("result");
+
+        if (a === "" || b === "") {
+            showResult("Please enter both numbers", true);
+            return;
+        }
+
+        const url = `/api/calculator/${operation}?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`;
+
+        try {
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error("Calculation failed. Check your inputs.");
+            }
+
+            const result = await response.json();
+            showResult("Result: " + result, false);
+
+        } catch (error) {
+            showResult(error.message, true);
+        }
+    }
+
+    function showResult(message, isError) {
+        const resultElement = document.getElementById("result");
+        resultElement.textContent = message;
+        resultElement.classList.toggle("error", isError);
+    }
+
+    function clearCalculator() {
+        document.getElementById("num1").value = "";
+        document.getElementById("num2").value = "";
+        showResult("Result will appear here", false);
+    }
+</script>
+
+</body>
+</html>
