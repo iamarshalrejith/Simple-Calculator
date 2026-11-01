@@ -1,19 +1,30 @@
+### Maven ###
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+
+### Java ###
+*.class
+*.jar
+*.war
+*.ear
+
 ### IntelliJ IDEA ###
+.idea/
+*.iml
 out/
-!**/src/main/**/out/
-!**/src/test/**/out/
 
 ### Eclipse ###
-.apt_generated
+.apt_generated/
 .classpath
 .factorypath
 .project
-.settings
+.settings/
 .springBeans
-.sts4-cache
+.sts4-cache/
 bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
 
 ### NetBeans ###
 /nbproject/private/
@@ -25,5 +36,14 @@ bin/
 ### VS Code ###
 .vscode/
 
-### Mac OS ###
+### Environment / secrets ###
+.env
+.env.*
+!.env.example
+
+### OS ###
 .DS_Store
+Thumbs.db
+
+# IntelliJ module files
+*.iml
