@@ -1,0 +1,62 @@
+---
+- name: Deploy Simple Calculator to AWS EKS
+  hosts: local
+  gather_facts: false
+
+  vars:
+    image_repository: "arshalrejith/simple-calculator"
+    image_tag: "latest"
+    deployment_name: "calculator"
+    container_name: "simple-calculator"
+    desired_image: "{{ image_repository }}:{{ image_tag }}"
+
+  tasks:
+    - name: Check Kubernetes cluster connectivity
+      ansible.builtin.command:
+        cmd: kubectl get nodes
+      register: cluster_check
+      retries: 5
+      delay: 10
+      until: cluster_check.rc == 0
+      changed_when: false
+
+    - name: Get current calculator deployment image
+      ansible.builtin.shell:
+        cmd: |
+          kubectl get deployment {{ deployment_name }} \
+            -o jsonpath='{.spec.template.spec.containers[?(@.name=="{{ container_name }}")].image}'
+      register: current_image
+      retries: 5
+      delay: 10
+      until: current_image.rc == 0
+      changed_when: false
+
+    - name: Update calculator deployment image
+      ansible.builtin.command:
+        cmd: >-
+          kubectl set image deployment/{{ deployment_name }}
+          {{ container_name }}={{ desired_image }}
+      when: current_image.stdout != desired_image
+      register: image_update
+
+    - name: Wait for deployment rollout
+      ansible.builtin.command:
+        cmd: >-
+          kubectl rollout status deployment/{{ deployment_name }}
+          --timeout=180s
+      register: rollout
+      retries: 3
+      delay: 10
+      until: rollout.rc == 0
+      changed_when: false
+
+    - name: Verify deployment
+      ansible.builtin.command:
+        cmd: kubectl get deployment {{ deployment_name }}
+      changed_when: false
+
+    - name: Verify running pods
+      ansible.builtin.command:
+        cmd: kubectl get pods -o wide
+      changed_when: false
+
