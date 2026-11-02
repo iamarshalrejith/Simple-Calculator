@@ -84,13 +84,35 @@ jobs:
             throw "Failed to configure EKS access"
           }
 
+      
       - name: Verify Kubernetes connection
-        shell: powershell
+        shell: pwsh
         run: |
-          kubectl get nodes
-          if ($LASTEXITCODE -ne 0) {
-            throw "Cannot connect to EKS cluster"
+          $maxAttempts = 5
+          $connected = $false
+
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host "Checking EKS connectivity (Attempt $attempt of $maxAttempts)..."
+
+            kubectl get nodes
+
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Successfully connected to EKS."
+              $connected = $true
+              break
+            }
+
+            Write-Warning "EKS connection failed. Retrying in 15 seconds..."
+
+            if ($attempt -lt $maxAttempts) {
+              Start-Sleep -Seconds 15
+            }
           }
+
+          if (-not $connected) {
+            throw "Cannot connect to EKS cluster after $maxAttempts attempts."
+          }
+
 
       - name: Deploy new Docker image
         shell: powershell
