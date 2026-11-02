@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-
   pull_request:
     branches:
       - main
@@ -65,13 +64,14 @@ jobs:
     needs: docker-build-and-push
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Verify AWS authentication
         shell: powershell
         run: |
           aws sts get-caller-identity
+
           if ($LASTEXITCODE -ne 0) {
             throw "AWS authentication failed"
           }
@@ -80,21 +80,21 @@ jobs:
         shell: powershell
         run: |
           aws eks update-kubeconfig --region ap-southeast-2 --name simple-calculator-eks
+
           if ($LASTEXITCODE -ne 0) {
             throw "Failed to configure EKS access"
           }
 
-      
       - name: Verify Kubernetes connection
-        shell: pwsh
+        shell: powershell
         run: |
           $maxAttempts = 5
           $connected = $false
 
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            Write-Host "Checking EKS connectivity (Attempt $attempt of $maxAttempts)..."
+            Write-Host "Checking EKS connectivity - Attempt $attempt of $maxAttempts"
 
-            kubectl get nodes
+            kubectl get nodes --request-timeout=30s
 
             if ($LASTEXITCODE -eq 0) {
               Write-Host "Successfully connected to EKS."
@@ -102,9 +102,8 @@ jobs:
               break
             }
 
-            Write-Warning "EKS connection failed. Retrying in 15 seconds..."
-
             if ($attempt -lt $maxAttempts) {
+              Write-Warning "Connection failed. Retrying in 15 seconds..."
               Start-Sleep -Seconds 15
             }
           }
@@ -113,26 +112,25 @@ jobs:
             throw "Cannot connect to EKS cluster after $maxAttempts attempts."
           }
 
-
       - name: Deploy new Docker image
         shell: powershell
         run: |
           kubectl set image deployment/calculator simple-calculator=arshalrejith/simple-calculator:${{ github.sha }}
+
           if ($LASTEXITCODE -ne 0) {
             throw "Failed to update Kubernetes deployment"
           }
 
-      
       - name: Verify deployment rollout
-        shell: pwsh
+        shell: powershell
         run: |
           $maxAttempts = 5
           $success = $false
 
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            Write-Host "Checking Kubernetes rollout (Attempt $attempt of $maxAttempts)..."
+            Write-Host "Checking deployment rollout - Attempt $attempt of $maxAttempts"
 
-            kubectl rollout status deployment/calculator --timeout=180s
+            kubectl rollout status deployment/calculator --timeout=60s
 
             if ($LASTEXITCODE -eq 0) {
               Write-Host "Kubernetes rollout successful."
@@ -140,9 +138,8 @@ jobs:
               break
             }
 
-            Write-Warning "Rollout verification failed. Retrying in 15 seconds..."
-
             if ($attempt -lt $maxAttempts) {
+              Write-Warning "Rollout check failed. Retrying in 15 seconds..."
               Start-Sleep -Seconds 15
             }
           }
@@ -150,7 +147,6 @@ jobs:
           if (-not $success) {
             throw "Kubernetes rollout verification failed after $maxAttempts attempts."
           }
-
 
       - name: Verify running pods
         shell: powershell
@@ -171,7 +167,7 @@ jobs:
               }
 
               if ($attempt -lt 5) {
-                Write-Host "Request failed. Retrying in 10 seconds..."
+                Write-Warning "Request failed. Retrying in 10 seconds..."
                 Start-Sleep -Seconds 10
               }
             }
@@ -179,10 +175,6 @@ jobs:
             throw "$Description failed after 5 attempts."
           }
 
-          Invoke-KubectlWithRetry `
-            -Arguments @("get", "deployment", "calculator") `
-            -Description "Verify deployment"
+          Invoke-KubectlWithRetry -Arguments @("get", "deployment", "calculator") -Description "Verify deployment"
 
-          Invoke-KubectlWithRetry `
-            -Arguments @("get", "pods", "-o", "wide") `
-            -Description "Verify running pods"
+          Invoke-KubectlWithRetry -Arguments @("get", "pods", "-o", "wide") -Description "Verify running pods"
