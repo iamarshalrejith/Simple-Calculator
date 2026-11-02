@@ -1,3 +1,4 @@
+
 name: Simple Calculator CI/CD
 
 on:
@@ -107,7 +108,7 @@ jobs:
             throw "Kubernetes rollout failed"
           }
 
-            - name: Verify running pods
+      - name: Verify running pods
         shell: powershell
         run: |
           function Invoke-KubectlWithRetry {
