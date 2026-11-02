@@ -107,8 +107,37 @@ jobs:
             throw "Kubernetes rollout failed"
           }
 
-      - name: Verify running pods
+            - name: Verify running pods
         shell: powershell
         run: |
-          kubectl get deployment calculator
-          kubectl get pods -o wide
+          function Invoke-KubectlWithRetry {
+            param(
+              [string[]]$Arguments,
+              [string]$Description
+            )
+
+            for ($attempt = 1; $attempt -le 5; $attempt++) {
+              Write-Host "$Description - Attempt $attempt of 5"
+
+              & kubectl @Arguments --request-timeout=30s
+
+              if ($LASTEXITCODE -eq 0) {
+                return
+              }
+
+              if ($attempt -lt 5) {
+                Write-Host "Request failed. Retrying in 10 seconds..."
+                Start-Sleep -Seconds 10
+              }
+            }
+
+            throw "$Description failed after 5 attempts."
+          }
+
+          Invoke-KubectlWithRetry `
+            -Arguments @("get", "deployment", "calculator") `
+            -Description "Verify deployment"
+
+          Invoke-KubectlWithRetry `
+            -Arguments @("get", "pods", "-o", "wide") `
+            -Description "Verify running pods"
