@@ -100,13 +100,35 @@ jobs:
             throw "Failed to update Kubernetes deployment"
           }
 
+      
       - name: Verify deployment rollout
-        shell: powershell
+        shell: pwsh
         run: |
-          kubectl rollout status deployment/calculator --timeout=180s
-          if ($LASTEXITCODE -ne 0) {
-            throw "Kubernetes rollout failed"
+          $maxAttempts = 5
+          $success = $false
+
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host "Checking Kubernetes rollout (Attempt $attempt of $maxAttempts)..."
+
+            kubectl rollout status deployment/calculator --timeout=180s
+
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Kubernetes rollout successful."
+              $success = $true
+              break
+            }
+
+            Write-Warning "Rollout verification failed. Retrying in 15 seconds..."
+
+            if ($attempt -lt $maxAttempts) {
+              Start-Sleep -Seconds 15
+            }
           }
+
+          if (-not $success) {
+            throw "Kubernetes rollout verification failed after $maxAttempts attempts."
+          }
+
 
       - name: Verify running pods
         shell: powershell
