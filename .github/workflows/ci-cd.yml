@@ -11,10 +11,29 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  # 1. Secret Detection
+  secret-scan:
+    name: Gitleaks Secret Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 2. Build and Test
   build-and-test:
     name: Build and Test
+    needs: secret-scan
     runs-on: ubuntu-latest
 
     steps:
@@ -31,6 +50,7 @@ jobs:
       - name: Build and run tests
         run: mvn -B clean verify
 
+  # 3. Docker Build and Push
   docker-build-and-push:
     name: Build and Push Docker Image
     needs: build-and-test
@@ -59,6 +79,7 @@ jobs:
             arshalrejith/simple-calculator:latest
             arshalrejith/simple-calculator:${{ github.sha }}
 
+  # 4. Deploy to AWS EKS
   deploy-to-eks:
     name: Deploy to AWS EKS
     needs: docker-build-and-push
